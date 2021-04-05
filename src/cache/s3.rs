@@ -17,7 +17,10 @@ use futures::future;
 use futures::future::Future;
 use futures_03::{future::TryFutureExt as _};
 use hyperx::header::CacheDirective;
+use hyper_tls::HttpsConnector;
+use hyper_013::Client as HyperClient;
 use rusoto_core::{self, Client, HttpClient, Region};
+use rusoto_core::credential::DefaultCredentialsProvider;
 use rusoto_s3::{GetObjectOutput, GetObjectRequest, PutObjectRequest, S3Client, S3 as _};
 use std::io;
 use std::str::FromStr;
@@ -58,13 +61,22 @@ impl S3Cache {
         };
 
         //we could define our own Annonymous StaticProvider here, but we'd have to verify that the DefaultCredentialsProvider would fail first.
+        let mut builder = HyperClient::builder();
+        // S3 has a default 20 second timeout. This is much shorter than hyper's 90s default timeout
+        builder.pool_idle_timeout(Duration::from_secs(15));
+        let http_client = HttpClient::from_builder(
+            builder, 
+            HttpsConnector::new(),
+        );
+
         let client = if public {
-            let client = Client::new_not_signing(
-                HttpClient::new().expect("failed to create request dispatcher"),
-            );
+            let client = Client::new_not_signing(http_client);
             S3Client::new_with_client(client, region)
         } else {
-            S3Client::new(region)
+            let credentials_provider =
+                DefaultCredentialsProvider::new().expect("failed to create credentials provider");
+            let client = Client::new_with(credentials_provider, http_client);
+            S3Client::new_with_client(client, region)
         };
 
         Ok(S3Cache {

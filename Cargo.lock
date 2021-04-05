@@ -2690,6 +2690,8 @@ dependencies = [
  "hmac 0.10.1",
  "http 0.1.21",
  "hyper 0.12.35",
+ "hyper 0.13.10",
+ "hyper-tls 0.4.3",
  "hyperx",
  "itertools 0.10.0",
  "jobserver",
